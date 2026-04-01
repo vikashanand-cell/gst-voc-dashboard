@@ -159,6 +159,26 @@ tr:hover td{background:#FAFBFC;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .ovtxt{font-size:13px;color:var(--text2);font-family:'IBM Plex Mono',monospace;}
 .footer{background:var(--navy);color:rgba(255,255,255,.4);padding:13px 32px;font-size:10px;font-family:'IBM Plex Mono',monospace;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+/* EXCLUDED SECTION */
+.excl-head{background:linear-gradient(135deg,#374151,#6B7280);}
+.excl-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);}
+.excl-kpi{border-radius:9px;padding:11px 13px;text-align:center;}
+.excl-kpi.tot{background:var(--navy-light);border:1px solid #BFDBFE;}
+.excl-kpi.dup{background:#F8FAFC;border:1px solid #CBD5E1;}
+.excl-kpi.dec{background:#FEF2F2;border:1px solid #FECACA;}
+.excl-kpi.por{background:#F5F3FF;border:1px solid #DDD6FE;}
+.excl-kpi .kpi-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:3px;}
+.excl-kpi.tot .kpi-lbl{color:var(--navy);}
+.excl-kpi.dup .kpi-lbl{color:#475569;}
+.excl-kpi.dec .kpi-lbl{color:#991B1B;}
+.excl-kpi.por .kpi-lbl{color:#5B21B6;}
+.excl-kpi .kpi-val{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;line-height:1;}
+.excl-kpi.tot .kpi-val{color:var(--navy);}
+.excl-kpi.dup .kpi-val{color:#475569;}
+.excl-kpi.dec .kpi-val{color:var(--red);}
+.excl-kpi.por .kpi-val{color:var(--purple);}
+.excl-kpi .kpi-pct{font-size:10px;font-family:'IBM Plex Mono',monospace;margin-top:2px;color:var(--text3);}
+.excl-note{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 12px;margin:0 18px 12px;font-size:11px;color:var(--text3);line-height:1.5;}
 @media(max-width:960px){
   .summary-blocks,.sections{grid-template-columns:1fr;}
   .sb-kpis{grid-template-columns:repeat(2,1fr);}
@@ -340,6 +360,35 @@ tr:hover td{background:#FAFBFC;}
   </div>
 </div>
 
+<!-- EXCLUDED: DUPLICATE + PO DECLINE -->
+<div class="secblock" id="exclBlock" style="margin-bottom:20px;border-color:#CBD5E1;">
+  <div class="sechead excl-head">
+    <div><div class="sh-title">🚫 Excluded — Duplicate &amp; PO Decline</div><div class="sh-sub">Not counted in Completed · Tracked separately for reference</div></div>
+    <div class="sh-right"><div class="sh-count" id="exclCnt">—</div><div class="sh-pct" id="exclPct">—</div></div>
+  </div>
+  <div class="excl-kpis">
+    <div class="excl-kpi tot"><div class="kpi-lbl">Total Excluded</div><div class="kpi-val" id="exklTot">—</div><div class="kpi-pct">of 287 items</div></div>
+    <div class="excl-kpi dup"><div class="kpi-lbl">🔁 Duplicate</div><div class="kpi-val" id="exklDup">—</div><div class="kpi-pct" id="exklDupPct">—</div></div>
+    <div class="excl-kpi dec"><div class="kpi-lbl">❌ PO Decline</div><div class="kpi-val" id="exklDec">—</div><div class="kpi-pct" id="exklDecPct">—</div></div>
+    <div class="excl-kpi por"><div class="kpi-lbl">📊 % of Total</div><div class="kpi-val" id="exklPor">—</div><div class="kpi-pct">excluded from score</div></div>
+  </div>
+  <div class="excl-note">
+    ℹ️ <strong>Duplicate</strong> = items already tracked under another ticket and closed there. &nbsp;|&nbsp;
+    <strong>PO Decline</strong> = items reviewed and declined by the Product Owner after analysis.
+    Both are excluded from Completed &amp; In Progress counts.
+  </div>
+  <div class="pills" id="exclPills"></div>
+  <div class="tarea">
+    <div class="ttbar"><span class="tcnt" id="exclTcnt">—</span></div>
+    <div class="twrap"><table><thead><tr>
+      <th>Ticket</th><th>Date</th><th>Type</th><th>Summary</th><th>PO</th>
+      <th>Status</th><th>Priority</th><th>Developer</th><th>Tester</th>
+      <th>Support Remarks</th><th>Product Remarks</th>
+    </tr></thead><tbody id="exclBody"></tbody></table></div>
+    <div class="pgrow"><span class="pginfo" id="exclPgInfo">—</span><div class="pgbtns" id="exclPgBtns"></div></div>
+  </div>
+</div>
+
 </div>
 <div class="footer">
   <span>Masters India IT Solutions Pvt. Ltd. · GST Suvidha Provider · AUT Product</span>
@@ -356,7 +405,7 @@ const COMP_S = ['Done','Ready for Release'];
 const PROG_S = ['Ready for Dev','In Dev','In Testing','Ready for Test','PO Analysis'];
 const HOLD_S = ['Hold'];
 // FIX: ORIG_DATE uses exact string match against clean YYYY-MM-DD strings
-const ORIG_DATE = '2026-03-17';
+const EXCL_S = ['Duplicate','PO Decline'];
 const PG = 15;
 
 const STAG = {
@@ -372,10 +421,10 @@ const DOTCOL = {
 
 // ── STATE ─────────────────────────────────────────────────
 let raw=EMBEDDED.slice();
-let compData=[],progData=[],holdData=[];
+let compData=[],progData=[],holdData=[],exclData=[];
 let compFil=[],progFil=[];
-let compPg=1,progPg=1,holdPg=1;
-let compSub='All',progSub='All';
+let compPg=1,progPg=1,holdPg=1,exclPg=1;
+let compSub='All',progSub='All',exclSub='All';
 let gf={po:'All'}, aiCache={};
 
 // ── PARSERS ───────────────────────────────────────────────
@@ -490,7 +539,8 @@ function applyFilters(){
   compData=base.filter(r=>COMP_S.includes((r['Status']||'').trim()));
   progData=base.filter(r=>PROG_S.includes((r['Status']||'').trim()));
   holdData=base.filter(r=>HOLD_S.includes((r['Status']||'').trim()));
-  compPg=1;progPg=1;holdPg=1;compSub='All';progSub='All';
+  exclData=base.filter(r=>EXCL_S.includes((r['Status']||'').trim()));
+  compPg=1;progPg=1;holdPg=1;exclPg=1;compSub='All';progSub='All';exclSub='All';
   renderAll(base);
 }
 
@@ -541,7 +591,80 @@ function renderAll(base){
   set('holdCnt',holdData.length);
   set('holdPct','Deferred to April');
 
-  renderSec('comp');renderSec('prog');renderHold();
+  renderSec('comp');renderSec('prog');renderHold();renderExcl();
+}
+
+function renderExcl(){
+  const data=exclData;
+  const tot=raw.length||1;
+  const dup=data.filter(r=>(r['Status']||'').trim()==='Duplicate').length;
+  const dec=data.filter(r=>(r['Status']||'').trim()==='PO Decline').length;
+  set('exclCnt',data.length);
+  set('exclPct','Excluded from score');
+  set('exklTot',data.length);
+  set('exklDup',dup);
+  set('exklDupPct',(dup/tot*100).toFixed(1)+'% of total');
+  set('exklDec',dec);
+  set('exklDecPct',(dec/tot*100).toFixed(1)+'% of total');
+  set('exklPor',(data.length/tot*100).toFixed(1)+'%');
+
+  // Sub-filter pills
+  const sub=exclSub;
+  let ph=pill('All',data.length,sub==='All','#6B7280','excl','All');
+  ['Duplicate','PO Decline'].forEach(s=>{
+    const c=data.filter(r=>(r['Status']||'').trim()===s).length;
+    if(c) ph+=pill(s,c,sub===s,s==='Duplicate'?'#94A3B8':'#EF4444','excl',s);
+  });
+  document.getElementById('exclPills').innerHTML=ph;
+
+  const fil=sub==='All'?data:data.filter(r=>(r['Status']||'').trim()===sub);
+  renderExclTable(fil,exclPg);
+}
+
+function renderExclTable(data,pg){
+  const start=(pg-1)*PG;
+  const rows=data.slice(start,start+PG);
+  const totalP=Math.max(1,Math.ceil(data.length/PG));
+  set('exclTcnt',data.length+' items');
+  document.getElementById('exclBody').innerHTML=rows.map(r=>{
+    const key=(r['Issue key']||'').trim();
+    const jira=key?`https://mastersindia-sols.atlassian.net/browse/${key}`:'#';
+    const s=(r['Status']||'').trim();
+    const tc=s==='Duplicate'?'t-dup':'t-dec';
+    const p=(r['Priority']||'').trim();
+    const pc=p==='P0'?'p-p0':p==='AYM'?'p-aym':'p-na';
+    const sum=(r['Summary']||'').substring(0,90)+((r['Summary']||'').length>90?'…':'');
+    const dev=(r['Developer']||'—').replace(/^,|,$/g,'');
+    const newItem=isNew(r);
+    const dateTd=newItem
+      ?`<td><div class="date-new">🆕 ${fmtDate(r)}</div></td>`
+      :`<td><span class="date-orig">${fmtDate(r)}</span></td>`;
+    return `<tr>
+      <td><a class="tklink" href="${jira}" target="_blank">${key||'—'}</a></td>
+      ${dateTd}
+      <td style="font-size:11px;color:var(--text3);white-space:nowrap">${r['Issue Type']||'—'}</td>
+      <td class="sumcell">${sum}</td>
+      <td style="font-size:12px;white-space:nowrap">${r['PO']||'—'}</td>
+      <td><span class="stag ${tc}">${s}</span></td>
+      <td><span class="ptag ${pc}">${p||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text3)">${dev}</td>
+      <td style="font-size:11px;color:var(--text3)">${r['Tester']||'—'}</td>
+      <td class="remcell">${r['Support Remarks']||'—'}</td>
+      <td class="remcell">${r['Product Remarks']||'—'}</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text4)">No items</td></tr>`;
+
+  set('exclPgInfo',data.length?`${start+1}–${Math.min(start+PG,data.length)} of ${data.length}`:'0 items');
+  const b=[];
+  b.push(`<button class="pgbtn" onclick="goPgE(${pg-1})" ${pg===1?'disabled':''}>‹</button>`);
+  for(let i=1;i<=totalP;i++){
+    if(i===1||i===totalP||(i>=pg-1&&i<=pg+1))
+      b.push(`<button class="pgbtn${i===pg?' active':''}" onclick="goPgE(${i})">${i}</button>`);
+    else if(b[b.length-1]!=='<span style="padding:0 3px;color:var(--text4)">…</span>')
+      b.push(`<span style="padding:0 3px;color:var(--text4)">…</span>`);
+  }
+  b.push(`<button class="pgbtn" onclick="goPgE(${pg+1})" ${pg===totalP?'disabled':''}>›</button>`);
+  document.getElementById('exclPgBtns').innerHTML=b.join('');
 }
 
 function renderSec(sec){
@@ -635,13 +758,20 @@ function pill(label,cnt,active,color,sec,val){
 }
 function setSub(sec,val){
   if(sec==='comp'){compSub=val;compPg=1;renderSec('comp');}
-  else{progSub=val;progPg=1;renderSec('prog');}
+  else if(sec==='prog'){progSub=val;progPg=1;renderSec('prog');}
+  else{exclSub=val;exclPg=1;renderExcl();}
 }
 function goPg(sec,p){
   if(sec==='comp'){compPg=p;renderSec('comp');}
   else if(sec==='prog'){progPg=p;renderSec('prog');}
   else{holdPg=p;renderHold();}
   document.getElementById(sec+'Block').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function goPgE(p){
+  exclPg=p;
+  const fil=exclSub==='All'?exclData:exclData.filter(r=>(r['Status']||'').trim()===exclSub);
+  renderExclTable(fil,p);
+  document.getElementById('exclBlock').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function ckf(k,s){return(k||(s||'').substring(0,35));}
 function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
